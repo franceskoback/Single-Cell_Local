@@ -1,0 +1,131 @@
+---
+title: "SRA ps49 vs ps51 preprocessing"
+---
+Needed:
+Paths to 
+filtered_feature_bc_matrix
+aggregation.csv
+cell_cycle_genes.txt  
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load libraries}
+library(dplyr)
+library(Seurat)
+
+### human to mouse gene conversion function (for cc genes)
+convertHumanGeneList <- function(x){
+require("biomaRt")
+human = useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+mouse = useMart("ensembl", dataset = "mmusculus_gene_ensembl")
+## USER_EDIT 1--change mart=human to be mart=mouse if you are working with mouse data ??? Or maybe not, ask Angelo and see line 117 cc.genes 
+genesV2 = getLDS(attributes = c("hgnc_symbol"), filters = "hgnc_symbol", values = x , mart = human, attributesL = c("mgi_symbol"), martL = mouse, uniqueRows=T)
+humanx <- unique(genesV2[, 2])
+# Print the first 6 genes found to the screen
+print(head(humanx))
+return(humanx)
+}
+```
+
+```{r read data}
+### load dataset
+## USER_EDIT 2-- change this path below to the path pointing to your filtered_feature_bc_matrix
+data.Seurat_obj<- Read10X(data.dir = "../data/path_to_/filtered_feature_bc_matrix/")
+# Initialize the Seurat object with the raw (non-normalized data).
+## USER_EDIT 3-- change "project_name" to your project name and change min.cells and min.features to be different if you would like 
+Seurat_obj <- CreateSeuratObject(counts = data.Seurat_obj, project = "project_name", min.cells = 3, min.features = 200)
+
+rm(data.Seurat_obj)
+```
+
+```{r}
+## USER_EDIT 4-- change path name below to point to the csv sheet output from CellRanger aggr 
+AggrSheet <- read.csv("../data/aggregation.csv") 
+## USER_EDIT 5-- add gem.groups and conditions -- unique to your project The below are examples, but change to fit your data
+
+AggrSheet$gem.group <- c("timepoint1_rep1",
+                         "timepoint1_rep2",
+                         "timepoint2_rep1",
+                         "timepoint2_rep2",
+                         "timepoint2_rep3",
+                         "timepoint2_rep4")
+AggrSheet$condition <- c("timepoint1",
+                         "timepoint1",
+                         "timepoint2",
+                         "timepoint2",
+                         "timepoint2",
+                         "timepoint2")
+AggrSheet$cellID <- as.numeric(seq.int(nrow(AggrSheet))) ### adds an "index" column (1, 2, 3, etc.)
+
+### drop useless columns
+AggrSheet$molecule_h5 <- NULL
+### inspect this carefully to make sure all of the info is accurate
+AggrSheet
+write.csv(AggrSheet,'AggrSheet.csv')
+```
+
+Let's make a DF of the metadata we want to add.
+
+```{r}
+### same start as the old vector-based approach
+cellID <- as.numeric(gsub(".*-","", (colnames(x = Seurat_obj)))) ### this variable name becomes the colname in the DF
+names(cellID) <- colnames(x = Seurat_obj)
+
+### coerce named list to dataframe
+metadata2add <- data.frame(cellID)
+
+### fill out metadata DF based on annotated aggr.csv
+## pull rownames as column - clunky but easy
+## TODO: merge(), but keep rownames and eliminate this rownames>colnames>rownames business
+metadata2add$rownames_for_metadata <- rownames(metadata2add) 
+metadata2add <- merge(metadata2add, AggrSheet, by="cellID", all.x = TRUE, no.dups = FALSE, )
+rownames(metadata2add) <- metadata2add$rownames_for_metadata
+## drop columns we don't want in the metadata
+metadata2add$cellID <- NULL
+metadata2add$rownames_for_metadata <- NULL
+head(metadata2add)
+```
+
+
+```{r}
+### AddMetaData
+Seurat_obj <- AddMetaData(Seurat_obj, metadata = metadata2add)
+head(Seurat_obj@meta.data)
+```
+
+
+```{r}
+levels(as.factor(Seurat_obj@meta.data$condition))
+```
+
+Add a bit more metadata, % features (mito, ribo)
+```{r output rds}
+# calc % mt
+Seurat_obj[["percent.mt"]] <- PercentageFeatureSet(Seurat_obj, pattern = "^mt-")
+# calc % ribo
+Seurat_obj[["percent.ribo"]] <- PercentageFeatureSet(Seurat_obj, pattern = "^Rp[sl]")
+# cell cycle scoring
+
+# Assign cell cycle scores
+### USER_EDIT 6-- make sure this path points to your correct cell_cycle_genes.txt  
+cc.genes <- readLines("../data/regev_lab_cell_cycle_genes.txt")
+## convert Human to Mouse 
+## USER_EDIT 7-- comment the below line out if you are working with human data and not mouse data
+cc.genes <- convertHumanGeneList(cc.genes)
+## segregate this list into markers of G2/M phase and markers of S phase
+s.genes <- cc.genes[1:45]
+g2m.genes <- cc.genes[46:100]
+## assign cell cycle scores
+Seurat_obj <- CellCycleScoring(Seurat_obj, s.features = s.genes, g2m.features = g2m.genes, set.ident = TRUE)
+head(Seurat_obj@meta.data)
+```
+
+
+```{r}
+## USER_EDIT 8-- change path name to wherever you want to save your Seurat Object for this data and whatever you want to name it, an example format is below 
+saveRDS(Seurat_obj, file = "../data/rds/01_rawObject_noFilters_scoresAdded_projectname_date.RDS")
+```
+Done, please open notebook 02!
