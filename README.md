@@ -2,15 +2,17 @@ Workflow for Single-Cell Analysis Local Version
 
 To use this script:
 
-git clone https://github.com/franceskoback/Single-Cell
-Add your own inputs to the data and filtered_featured_bc folders as specified in the path names below: AggrSheet.csv, regev_lab_cell_cycle_genes.txt, filtered_feature_bc_matrix
-Use the script as follows:
-Rscript Step1_Preprocessing.R /wynton/home/srivastava/franceskoback/Single-Cell/filtered_feature_bc_matrix /wynton/home/srivastava/franceskoback/Single-Cell/data/AggrSheet.csv /wynton/home/srivastava/franceskoback/Single-Cell/data/regev_lab_cell_cycle_genes.txt /wynton/home/srivastava/franceskoback/Single-Cell/data/rds/noFilters_scoresAdded.rds
+git clone https://github.com/franceskoback/Single-Cell_Local
 
-Rscript Visualize_Boundaries.R /wynton/home/srivastava/franceskoback/Single-Cell/data/noFilters_scoresAdded.rds 1 10 13 33 2500 23000 1000 5000
+Add your own inputs to the data and filtered_featured_bc folders. You will need the paths to 
+filtered_feature_bc_matrix
+aggregation.csv
+cell_cycle_genes.txt  
 
-Rscript Step2_Clustering_Filtering.R /wynton/home/srivastava/franceskoback/Single-Cell/data/noFilters_scoresAdded.rds 1 10 13 33 2500 23000 1000 5000 /wynton/home/srivastava/franceskoback/Single-Cell/data/rds/FilteredAndClustered_onlyVarGenes.rds
+Prerequisites for this pipeline involve installing RStudio (https://www.rstudio.com/products/rstudio/download/) and installing the packages required in each of these R Notebooks (https://www.datacamp.com/community/tutorials/r-packages-guide) 
 
-Rscript Step3_Reclustering.R /wynton/home/srivastava/franceskoback/Single-Cell/data/rds/FilteredAndClustered_onlyVarGenes.rds 11 9,10,11 /wynton/home/srivastava/franceskoback/Single-Cell/data/rds/FilteredAndReClustered_onlyVarGenes.rds /wynton/home/srivastava/franceskoback/Single-Cell/data/findAllMarkers_harmony_09_27_2021.csv
+Use these notebooks in this order:
+1. Step1_Preprocessing.Rmd 
+2. Step2_Clustering_Filtering.Rmd
 
-Or, if you want to submit as a job, run a bash file, such as qsub -m ea -M frances.koback@gladstone.ucsf.edu bash_script.sh An example bash file that you could use is attached in this repository-- edit it as you wish on your computer
+In each of these, search (command F) for the term USER_EDIT. I've laid out exactly which lines you'll need to edit for your specific data and how to go through the process of analyzing what these scripts will output. If you have any questions on this, please do not hesitate to reach out.
