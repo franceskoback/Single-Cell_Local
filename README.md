@@ -1,4 +1,4 @@
-#Workflow for Single-Cell Analysis Local Version
+## Workflow for Single-Cell Analysis Local Version
 
 To use this script:
 
