@@ -1,0 +1,286 @@
+---
+title: "Step 2- QC filtering and clustering"
+---
+
+```{r load libraries}
+library(Seurat)
+library(ggplot2)
+library(gridExtra)
+library(stringr)
+library(ggplot2)
+library(tidyverse) 
+ set.seed(7)
+```
+
+```{r load and calc % mt}
+# object updated date_here
+# if starting here, run:
+# USER_EDIT 1-- change path below to point to the path to your Seurat object
+Seurat_obj<- readRDS(file = "./data/rds/01_rawObject_noFilters_scoresAdded_projectname_date.RDSS")
+head(Seurat_obj@meta.data)
+```
+
+So, I'm revamping how we look at QC metrics - I find the Violin Plots and FeatureScatters to be too "fuzzy,' so instead let's pull the metadata and look at it through ggplot.
+```{r}
+### pull data
+qc.metrics <- Seurat_obj[[c("nCount_RNA","nFeature_RNA","percent.mt","percent.ribo")]]
+
+### plot w/ ggplot
+# % mito
+## USER_EDIT 2 -- change the geom_vline 1 and 10 below to be numbers that match where the bulk of your data lies. The black lines in this plot show what will be filtered out and kept in based on your numbers here. Keep track of these numbers because you'll use them in the filtering step 
+qc.metrics %>%
+  ggplot(aes(percent.mt)) + 
+  geom_histogram(binwidth = 0.4, fill="yellow", colour="black") +
+  ggtitle("percent.mt") +
+  geom_vline(xintercept = c(as.numeric('1'), 10)) ### you can play with these values to get an idea of where the filters should be set...
+```
+
+```{r}
+# % ribo
+## USER_EDIT 3 -- change the geom_vline 13 and 33 below to be numbers that match where the bulk of your data lies. The black lines in this plot show what will be filtered out and kept in based on your numbers here. Keep track of these numbers because you'll use them in the filtering step
+qc.metrics %>%
+  ggplot(aes(percent.ribo)) + 
+  geom_histogram(binwidth = 0.4, fill="yellow", colour="black") +
+  ggtitle("percent.ribo") +
+  geom_vline(xintercept = c(13, 33))
+```
+
+```{r}
+# nCount
+## USER_EDIT 4 -- change the geom_vline 2500 and 23000 below to be numbers that match where the bulk of your data lies. The black lines in this plot show what will be filtered out and kept in based on your numbers here. Keep track of these numbers because you'll use them in the filtering step
+qc.metrics %>%
+  ggplot(aes(nCount_RNA)) + 
+  geom_histogram(binwidth = 100, fill="yellow", colour="black") +
+  ggtitle("nCount_RNA") +
+  geom_vline(xintercept = c(2500, 23000))
+```
+
+```{r}
+# nFeature
+## USER_EDIT 5 -- change the geom_vline 2500 and 23000 below to be numbers that match where the bulk of your data lies. The black lines in this plot show what will be filtered out and kept in based on your numbers here. Keep track of these numbers because you'll use them in the filtering step
+qc.metrics %>%
+  ggplot(aes(nFeature_RNA)) + 
+  geom_histogram(binwidth = 100, fill="yellow", colour="black") +
+  ggtitle("nFeature_RNA") +
+  geom_vline(xintercept = c(1000, 5000))
+```
+Let's apply some filters to the extracted metadata and check things over...
+
+```{r}
+### filter by % mito, % ribo, nFeature, and nCounts 
+## store the thresholds as variables for easy use later... 
+## USER_EDIT 6-- change the numbers below to match the numbers you put in the graphs above for filtering criterion after visualizing your data 
+mito_cutoffs <- c(1,10)
+ribo_cutoffs <- c(13, 33)
+nFeat_cutoffs <- c(1000, 5000)
+nCount_cutoffs <- c(2500, 23000)
+
+qc.metrics_subset <- qc.metrics[qc.metrics$percent.mt > min(mito_cutoffs) & qc.metrics$percent.mt < max(mito_cutoffs) &
+                                  qc.metrics$percent.ribo > min(ribo_cutoffs) & qc.metrics$percent.ribo <  max(ribo_cutoffs) &
+                                  qc.metrics$nFeature_RNA > min(nFeat_cutoffs) & qc.metrics$nFeature_RNA <  max(nFeat_cutoffs) &
+                                  qc.metrics$nCount_RNA > min(nCount_cutoffs) & qc.metrics$nCount_RNA < max(nCount_cutoffs),]
+
+print(paste("# of cells before filters:", nrow(qc.metrics)))
+print(paste("# of cells after filters:", nrow(qc.metrics_subset)))
+```
+
+```{r}
+# % mito
+qc.metrics_subset %>%
+  ggplot(aes(percent.mt)) + 
+  geom_histogram(binwidth = 0.4, fill="blue", colour="black") +
+  ggtitle("percent.mt") +
+  geom_vline(xintercept = c(min(mito_cutoffs), max(mito_cutoffs))) ### you can play with these values to get an idea of where the filters should be set...
+
+# % ribo
+qc.metrics_subset %>%
+  ggplot(aes(percent.ribo)) + 
+  geom_histogram(binwidth = 0.4, fill="pink", colour="black") +
+  ggtitle("percent.ribo") +
+  geom_vline(xintercept = c(min(ribo_cutoffs), max(ribo_cutoffs)))
+
+# nCount
+qc.metrics_subset %>%
+  ggplot(aes(nCount_RNA)) + 
+  geom_histogram(binwidth = 100, fill="yellow", colour="black") +
+  ggtitle("nCount_RNA") +
+  geom_vline(xintercept = c(min(nCount_cutoffs), max(nCount_cutoffs)))
+
+# nFeature
+qc.metrics_subset %>%
+  ggplot(aes(nFeature_RNA)) + 
+  geom_histogram(binwidth = 100, fill="cyan", colour="black") +
+  ggtitle("nFeature_RNA") +
+  geom_vline(xintercept = c(min(nFeat_cutoffs), max(nFeat_cutoffs)))
+```
+
+USER_EDIT 7-- 
+Go back up to the filtering of the dataframe and tweak those values until you're happy with these histograms!
+
+Once that's all set, check the Violin and Feature Scatter plots before/after filtering the object based on these ggplot criteria...
+
+Remember, we set some variables above for the filters - let's use those in the Seurat subset call
+
+```{r apply filters and plot QC metrics}
+### does the subset approach look familiar?
+cached_data  <- subset(Seurat_obj, 
+                       subset = percent.mt > min(mito_cutoffs) & percent.mt < max(mito_cutoffs) &
+                                  percent.ribo > min(ribo_cutoffs) & percent.ribo <  max(ribo_cutoffs) &
+                                  nFeature_RNA > min(nFeat_cutoffs) & nFeature_RNA <  max(nFeat_cutoffs) &
+                                  nCount_RNA > min(nCount_cutoffs) & nCount_RNA < max(nCount_cutoffs))
+```
+
+```{r}
+Idents(Seurat_obj) <- "gem.group"
+### violinplots
+VlnPlot(Seurat_obj, features = c("nFeature_RNA", "nCount_RNA"), ncol = 2, pt.size=0.1)
+VlnPlot(Seurat_obj, features = c("percent.mt", "percent.ribo"), ncol = 2, pt.size=0.1)
+### featurescatters
+FeatureScatter(Seurat_obj, feature1 = "nCount_RNA", feature2 = "percent.mt", pt.size=0.1, group.by = "gem.group")
+FeatureScatter(Seurat_obj, feature1 = "nCount_RNA", feature2 = "percent.ribo", pt.size=0.1, group.by = "gem.group")
+FeatureScatter(Seurat_obj, feature1 = "nFeature_RNA", feature2 = "percent.mt", pt.size=0.1, group.by = "gem.group")
+FeatureScatter(Seurat_obj, feature1 = "nFeature_RNA", feature2 = "percent.ribo", pt.size=0.1, group.by = "gem.group")
+FeatureScatter(Seurat_obj, feature1 = "nCount_RNA", feature2 = "nFeature_RNA", pt.size=0.1, group.by = "gem.group")
+```
+
+```{r}
+# plot filtered data
+# violinplots
+VlnPlot(cached_data, features = c("nFeature_RNA", "nCount_RNA"), ncol = 2, pt.size=0.1)
+VlnPlot(cached_data, features = c("percent.mt", "percent.ribo"), ncol = 2, pt.size=0.1)
+### featurescatters
+FeatureScatter(cached_data, feature1 = "nCount_RNA", feature2 = "percent.mt", pt.size=0.1, group.by = "gem.group")
+FeatureScatter(cached_data, feature1 = "nCount_RNA", feature2 = "percent.ribo", pt.size=0.1, group.by = "gem.group")
+FeatureScatter(cached_data, feature1 = "nFeature_RNA", feature2 = "percent.mt", pt.size=0.1, group.by = "gem.group")
+FeatureScatter(cached_data, feature1 = "nFeature_RNA", feature2 = "percent.ribo", pt.size=0.1, group.by = "gem.group")
+FeatureScatter(cached_data, feature1 = "nCount_RNA", feature2 = "nFeature_RNA", pt.size=0.1, group.by = "gem.group")
+```
+
+
+```{r}
+Seurat_obj <- cached_data
+rm(cached_data)
+```
+##### SCTransform
+```{r}
+gdata::keep(Seurat_obj, sure = TRUE)
+head(Seurat_obj@meta.data)clu
+```
+
+```{r}
+### SCTransform 
+Seurat_obj <- SCTransform(Seurat_obj, assay = "RNA", new.assay.name = "SCT", 
+                                    variable.features.n = 4000, 
+                                    variable.features.rv.th = 1.3, 
+                                    vars.to.regress = c("percent.ribo", "percent.mt", "G2M.Score", "S.Score"), 
+                                    return.only.var.genes = TRUE,conserve.memory= TRUE)
+
+### PCA
+Seurat_obj <- RunPCA(Seurat_obj, verbose = FALSE, npcs = 100)
+### harmony
+Seurat_obj <- harmony::RunHarmony(Seurat_obj, group.by.vars = "gem.group", assay.use="SCT")
+### elbowplot, just to check
+ElbowPlot(Seurat_obj, ndims = 50)
+```
+
+```{r}
+### set dims
+dims <- 1:35 ### relatively high # of dims, UMAP can take it.
+### NOTE: n.components = 3l is for 3d plotting *cool_emoji*)
+### umap, neighbors, and clusters
+Seurat_obj <- RunUMAP(Seurat_obj, reduction = "harmony", dims = dims) # , n.components = 3L)
+Seurat_obj <- FindNeighbors(Seurat_obj, reduction = "harmony", dims = dims)
+Seurat_obj <- FindClusters(Seurat_obj, resolution = 0.25)
+
+DimPlot(Seurat_obj, split.by = "gem.group")
+DimPlot(Seurat_obj)
+```
+
+
+```{r}
+## USER_EDIT 8-- change path to the path name / location you wish to use for this object, an example format is below 
+saveRDS(Seurat_obj, "../data/rds/02_SCTandHarmonyObject_FilteredAndClustered_onlyVarGenes_projectname_date.RDS")
+```
+
+```{r}
+# uncomment this below if you want to start from this step 
+#Seurat_obj <- readRDS("../data/rds/02_SCTandHarmonyObject_FilteredAndClustered_onlyVarGenes_projectname_date.RDS")
+DimPlot(Seurat_obj, label = TRUE)
+
+VlnPlot(Seurat_obj, features = c("nFeature_RNA", "nCount_RNA"), ncol = 2, pt.size=0.1)
+VlnPlot(Seurat_obj, features = c("percent.mt", "percent.ribo"), ncol = 2, pt.size=0.1)
+```
+
+Ok, now let's drop low quality clusters (if any) and finish this initial processing.
+```{r}
+VlnPlot(Seurat_obj, features = "nFeature_RNA")
+VlnPlot(Seurat_obj, features = "nCount_RNA")
+# uncomment these ggsave lines if you wish to save your plots as images 
+# ggsave("../results/01_initial_clustering/01_FirstClustering_nFeature_date.png", width = 12, height = 24, device = "png")
+DimPlot(Seurat_obj, label = TRUE)
+# ggsave("../results/01_initial_clustering/01_FirstClustering_Dimplot_date.png,", width = 12, height = 12, device = "png")
+```
+USER_EDIT 9-- based on the plots above, choose which clusters to keep and which to drop. Edit the lines below accordingly-- an example below is shown where there are 12 clusters and clusters 9, 10,and 11 are dropped, but change this for your data! 
+```{r}
+clusters2keep <- 0:11
+clusters2keep <- clusters2keep[clusters2keep != 9 &
+                                 clusters2keep != 10 &
+                                 clusters2keep != 11]
+Seurat_obj <- subset(Seurat_obj, idents = clusters2keep)
+```
+
+```{r}
+### SCTransform - same settings as before
+Seurat_obj <- SCTransform(Seurat_obj, assay = "RNA", new.assay.name = "SCT", 
+                                    variable.features.n = 4000, 
+                                    variable.features.rv.th = 1.3, 
+                                    vars.to.regress = c("percent.ribo", "percent.mt", "G2M.Score", "S.Score"), 
+                                    return.only.var.genes = TRUE,conserve.memory=TRUE)
+
+### PCA
+Seurat_obj <- RunPCA(Seurat_obj, verbose = FALSE, npcs = 100)
+### harmony
+Seurat_obj <- harmony::RunHarmony(Seurat_obj, group.by.vars = "gem.group", assay.use="SCT")
+### elbowplot, just to check
+ ElbowPlot(Seurat_obj, ndims = 50)
+
+### set dims
+dims <- 1:35 ### relatively high # of dims, UMAP can take it.
+### NOTE: n.components = 3l is for 3d plotting *cool_emoji*)
+### umap, neighbors, and clusters
+Seurat_obj <- RunUMAP(Seurat_obj, reduction = "harmony", dims = dims) # , n.components = 3L)
+Seurat_obj <- FindNeighbors(Seurat_obj, reduction = "harmony", dims = dims)
+Seurat_obj <- FindClusters(Seurat_obj, resolution = 0.25)
+
+DimPlot(Seurat_obj, split.by = "gem.group")
+DimPlot(Seurat_obj)
+
+VlnPlot(Seurat_obj, features = "nFeature_RNA")
+VlnPlot(Seurat_obj, features = "nCount_RNA")
+# uncomment these ggsave lines if you wish to save your plots as images and change the path name to match date
+#ggsave("../results/01_initial_clustering/02_SecondClustering_dropLowQual_nFeature_date.png", width = 12, height = 24, device = "png")
+DimPlot(Seurat_obj, label = TRUE)
+# uncomment these ggsave lines if you wish to save your plots as images and change the path name to match date
+#ggsave("../results/01_initial_clustering/02_SecondClustering_dropLowQual_Dimplot_date.png,", width = 12, height = 12, device = "png")
+```
+
+
+```{r}
+### save RDS!
+## USER_EDIT 10-- change path name to the name and location you want to store this object, an example format is below 
+saveRDS(Seurat_obj, file = "../data/rds/03_SCTandHarmonyObject_FilteredAndReclustered_onlyVarGenes_orojectname_date.RDS")
+### find cluster markers
+## parallelize
+## USER_EDIT 11-- change to match your compute environment! If you have a mac, you can find this information by clicking the apple in the far top left corner, clicking "About This Mac", system report (button down page under text). The relevant info is  Total Number of Cores:	x. The RAM size can be found in "About This Mac" under Memory (32 GB, for example). If you have 12 cores, make the number of workers = 6 for parallelization. If you have 8, make the number of workers 4, etc. 
+future::plan("multisession", workers = 6) ### 12-core // 128gb RAM
+options(future.globals.maxSize = 3000 * 1024^2) ### global var size increase - 3gb limit
+future::plan()
+
+FoundMarkers <- FindAllMarkers(Seurat_obj, random.seed = 7)
+future::plan("sequential") ### 12-core // 128gb RAM
+
+## USER_EDIT 12-- change to path name you wish to home your FoundMarkers csv file, an example format is below 
+write.csv(FoundMarkers, "../results/01_initial_clustering/01_FindAllMarkers_harmony_projectname_date.csv")
+
+```
+
