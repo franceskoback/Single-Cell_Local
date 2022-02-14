@@ -15,4 +15,4 @@ Use these notebooks in this order:
 1. Step1_Preprocessing.Rmd 
 2. Step2_Clustering_Filtering.Rmd
 
-In each of these, search (command F) for the term USER_EDIT. I've laid out exactly which lines you'll need to edit for your specific data and how to go through the process of analyzing what these scripts will output. If you have any questions on this, please do not hesitate to reach out.
+In each of these, search (command F) for the term USER_EDIT. These outline which lines you'll need to edit for your specific data and how to go through the process of analyzing what these scripts will output. If you have any questions on this, please do not hesitate to reach out.
