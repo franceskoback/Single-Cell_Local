@@ -16,3 +16,5 @@ Use these notebooks in this order:
 2. Step2_Clustering_Filtering.Rmd
 
 In each of these, search (command F) for the term USER_EDIT. These outline which lines you'll need to edit for your specific data and how to go through the process of analyzing what these scripts will output. If you have any questions on this, please do not hesitate to reach out.
+
+All of this code was modified from Angelo Pelonero's code for this pipeline 
