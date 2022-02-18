@@ -31,10 +31,10 @@ return(mousex)
 
 ```{r read data}
 ### load dataset
-## USER_EDIT 2-- change this path below to the path pointing to your filtered_feature_bc_matrix
+## USER_EDIT 1-- change this path below to the path pointing to your filtered_feature_bc_matrix
 data.Seurat_obj<- Read10X(data.dir = "../data/path_to_/filtered_feature_bc_matrix/")
 # Initialize the Seurat object with the raw (non-normalized data).
-## USER_EDIT 3-- change "project_name" to your project name and change min.cells and min.features to be different if you would like 
+## USER_EDIT 2-- change "project_name" to your project name and change min.cells and min.features to be different if you would like 
 Seurat_obj <- CreateSeuratObject(counts = data.Seurat_obj, project = "project_name", min.cells = 3, min.features = 200)
 
 rm(data.Seurat_obj)
@@ -42,9 +42,9 @@ rm(data.Seurat_obj)
 
 
 ```{r}
-## USER_EDIT 4-- change path name below to point to the csv sheet output from CellRanger aggr 
+## USER_EDIT 3-- change path name below to point to the csv sheet output from CellRanger aggr 
 AggrSheet <- read.csv("../data/aggregation.csv") 
-## USER_EDIT 5-- add gem.groups and conditions -- unique to your project The below are examples, but change to fit your data
+## USER_EDIT 4-- add gem.groups and conditions -- unique to your project The below are examples, but change to fit your data
 
 AggrSheet$gem.group <- c("timepoint1_rep1",
                          "timepoint1_rep2",
@@ -110,11 +110,11 @@ Seurat_obj[["percent.ribo"]] <- PercentageFeatureSet(Seurat_obj, pattern = "^Rp[
 # cell cycle scoring
 
 # Assign cell cycle scores
-### USER_EDIT 6-- make sure this path points to your correct cell_cycle_genes.txt  
+### USER_EDIT 5-- make sure this path points to your correct cell_cycle_genes.txt  
 cc.genes <- readLines("../data/regev_lab_cell_cycle_genes.txt")
 ## convert Human to Mouse 
 ## TODO  -- map in conditional statement -- if human or mouse!! 
-## USER_EDIT 7-- comment the below line out if you are working with human data and not mouse data
+## USER_EDIT 6-- comment the below line out if you are working with human data and not mouse data
 cc.genes <- convertHumanGeneList(cc.genes)
 ## segregate this list into markers of G2/M phase and markers of S phase
 s.genes <- cc.genes[1:45]
@@ -126,7 +126,7 @@ head(Seurat_obj@meta.data)
 
 
 ```{r}
-## USER_EDIT 8-- change path name to wherever you want to save your Seurat Object for this data and whatever you want to name it, an example format is below 
+## USER_EDIT 7-- change path name to wherever you want to save your Seurat Object for this data and whatever you want to name it, an example format is below 
 ## TODO -- paste command (if in a loop) or c command (cat) 
 saveRDS(Seurat_obj, file = "../data/rds/01_rawObject_noFilters_scoresAdded_projectname_date.RDS")
 ```
