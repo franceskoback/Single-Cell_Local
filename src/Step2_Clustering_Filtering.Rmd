@@ -164,7 +164,7 @@ rm(cached_data)
 ##### SCTransform
 ```{r}
 gdata::keep(Seurat_obj, sure = TRUE)
-head(Seurat_obj@meta.data)clu
+head(Seurat_obj@meta.data)
 ```
 
 ```{r}
